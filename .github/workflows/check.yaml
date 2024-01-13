@@ -1,0 +1,47 @@
+name: check
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version:
+    name: Ensure package version match
+    if: startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check Git tag format
+        env:
+          TYPE_GRAPHQL_REF_NAME: ${{ github.ref_name }}
+        run: |
+          _tag="$TYPE_GRAPHQL_REF_NAME"
+          if ! printf "%s\n" "$_tag" | grep -q -P '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(alpha|beta|rc)\.(0|[1-9][0-9]*))?$'; then
+            printf '[ERROR]: Git tag (%s) wrong format\n' "$_tag"
+            exit 1
+          fi
+
+  check:
+    name: Build & Lint & Test
+    needs: version
+    if: always() && (needs.version.result == 'success' || needs.version.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0

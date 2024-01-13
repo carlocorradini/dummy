@@ -1,0 +1,51 @@
+name: release
+
+on:
+  workflow_run:
+    workflows:
+      - check
+    types:
+      - completed
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Release package on NPM
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' && github.ref_name == 'main' && startsWith(github.event.workflow_run.head_branch, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Read Git tag version
+        id: tag
+        env:
+          TYPE_GRAPHQL_REF: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          _ref="$TYPE_GRAPHQL_REF"
+          printf 'value=%s\n' "${_ref#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Determine if version is prerelease
+        id: prerelease
+        env:
+          TYPE_GRAPHQL_VERSION: ${{ steps.tag.outputs.value }}
+        run: |
+          _prerelease=
+          if printf "%s\n" "$TYPE_GRAPHQL_VERSION" | grep -q -P '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'; then
+            _prerelease=false
+          else
+            _prerelease=true
+          fi
+
+          printf 'value=%s\n' "$_prerelease" >> "$GITHUB_OUTPUT"
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: "Hello version: ${{ steps.tag.outputs.changelog }}"
+          prerelease: ${{ steps.prerelease.outputs.value == 'true' }}
