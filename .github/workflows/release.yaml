@@ -22,18 +22,10 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
 
-      - name: Read Git tag version
-        id: tag
-        env:
-          TYPE_GRAPHQL_REF: ${{ github.event.workflow_run.head_branch }}
-        run: |
-          _ref="$TYPE_GRAPHQL_REF"
-          printf 'value=%s\n' "${_ref#refs/tags/}" >> "$GITHUB_OUTPUT"
-
       - name: Determine if version is prerelease
         id: prerelease
         env:
-          TYPE_GRAPHQL_VERSION: ${{ steps.tag.outputs.value }}
+          TYPE_GRAPHQL_VERSION: ${{ github.event.workflow_run.head_branch }}
         run: |
           _prerelease=
           if printf "%s\n" "$TYPE_GRAPHQL_VERSION" | grep -q -P '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'; then
@@ -47,5 +39,6 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          body: "Hello version: ${{ steps.tag.outputs.changelog }}"
+          tag_name: ${{ github.event.workflow_run.head_branch }}
+          body: "Hello version: ${{ github.event.workflow_run.head_branch }}"
           prerelease: ${{ steps.prerelease.outputs.value == 'true' }}
