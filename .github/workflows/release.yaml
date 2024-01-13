@@ -12,6 +12,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  printer:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "${{ github.ref_name }}"
+          echo "${{ github.event.workflow_run.head_branch }}"
+
   release:
     name: Release package on NPM
     runs-on: ubuntu-latest
